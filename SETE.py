@@ -128,13 +128,14 @@ def statisticsKmer(epiDict, k=3):
     return kmerDict
 
 
-def buildFeatures(epiDict, kmerDict, k=3):
+def buildFeatures(epiDict, kmerDict, k=3,
+                  return_kmers=False):
     counter = 0
     for epi in epiDict:
         counter += len(epiDict[epi])
     retArr = np.zeros((counter, len(kmerDict)))
 
-    kmerList = kmerDict.keys()
+    kmerList = list(kmerDict.keys())
     retLabel = []
 
     iter = 0
@@ -149,7 +150,11 @@ def buildFeatures(epiDict, kmerDict, k=3):
                 i += 1
             iter += 1
         epinum += 1
-    return np.array(retArr), np.array(retLabel)
+
+    if not return_kmers:
+        return np.array(retArr), np.array(retLabel)
+    else:
+        return np.array(retArr), np.array(retLabel), kmerList
 
 
 def _cal_micro_ROC(y_test, y_score):
@@ -275,7 +280,8 @@ def kernel_pca_analyse(X_train, X_test, kernel, rate=0.9):
     return pca.transform(X_train), pca.transform(X_test)
 
 
-def data_preprocess(file, k=3, remove_duplicate=False):
+def data_preprocess(file, k=3, remove_duplicate=False,
+                    return_kmers=False, min_tcrs_amount=10):
     print("Reading file: ", file)
     df = pd.read_csv(file)
 
@@ -295,7 +301,7 @@ def data_preprocess(file, k=3, remove_duplicate=False):
     # Threshold：10, only epitopes with binding tcr sequences over 10 are remained.
     epiDict_filtered = {}
     for epi in epiDict:
-        if len(epiDict[epi]) > 10:
+        if len(epiDict[epi]) > min_tcrs_amount:
             epiDict_filtered[epi] = epiDict[epi]
     epiDict = epiDict_filtered
 
@@ -308,9 +314,14 @@ def data_preprocess(file, k=3, remove_duplicate=False):
         print('{:22s} {:d}'.format(epi, len(epiDict[epi])))
 
     kmerDict = statisticsKmer(epiDict, k)
-    X, y = buildFeatures(epiDict, kmerDict, k)
 
-    return X, y, list(epiDict.keys())
+    if not return_kmers:
+        X, y = buildFeatures(epiDict, kmerDict, k)
+        return X, y, list(epiDict.keys())
+    else:
+        X, y, kmers_list = buildFeatures(epiDict, kmerDict, k, return_kmers=True)
+        return X, y, list(epiDict.keys()), kmers_list
+
 
 
 def draw_heatmap(X, y):
